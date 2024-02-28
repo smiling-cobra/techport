@@ -1,17 +1,51 @@
 <template>
-  <div v-if="error">
-    <p>{{ error }}</p>
-  </div>
-  <v-container class="bg-surface-variant" fluid>
-    <v-row>
-      <v-col>
-        <v-date-picker elevation="24" />
+  <v-container fluid fill-height class="d-flex flex-column container-offset">
+    <v-row justify="space-between" align="start">
+      <!-- Left Side -->
+      <v-col cols="12" md="1" class="mt-3">
+        <v-date-picker class="elevation-6" color="primary"></v-date-picker>
       </v-col>
-      <v-col>
+      
+      <!-- Right Side -->
+      <v-col cols="12" md="9">        
+        <v-row class="right-side-scroll">
+          <v-col cols="12" md="3" v-for="project in paginatedProjects" :key="project.id">
+            <v-card class="my-4 elevation-6" outlined @click="handleCardClick(project.id)">
+              <v-card-title tag="h6" class="headline font-weight-bold small-font">{{ project.name }}</v-card-title>
+              <v-card-subtitle>{{ project.startDate }} - {{ project.endDate }}</v-card-subtitle>
+              <v-card-text>{{ project.statusDescription }}</v-card-text>
+              <v-card-actions>
+                <v-btn color="primary" :href="project.website" target="_blank">Learn More</v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-col>
+        </v-row>
       </v-col>
     </v-row>
+    <!-- Pagination Component -->
+    <v-pagination
+    v-model="currentPage"
+    :length="10"
+    circle
+  ></v-pagination>
   </v-container>
 </template>
+
+<style>
+.container-offset {
+  margin-top: 56px;
+  height: calc(100vh - 56px);
+}
+
+.right-side-scroll {
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
+.small-font {
+  font-size: 14px !important;
+}
+</style>
 
 <script setup lang="ts">
 import { QUERY_KEYS } from '~/constants/index';
@@ -26,6 +60,7 @@ interface ProjectsMetaData {
 }
 
 interface Project {
+  id: number;
   name: string;
   startDate: string;
   endDate: string;
@@ -34,13 +69,17 @@ interface Project {
   website: string;
 }
 
+const handleCardClick = (id: number) => {
+  console.log('Card clicked', id);
+};
+
+const currentPage = ref(1);
 const projectsList = ref<any[]>([]);
 
 const {
   data: projectsMetaData,
   pending,
   error,
-  refresh
 } = await useAsyncData<{ projects: ProjectsMetaData[] }>(
   QUERY_KEYS.PROJECTS_METADATA,
   () => $fetch(API_URL.PROJECTS,
@@ -60,12 +99,13 @@ watch(projectsMetaData, async newVal => {
 }, { immediate: true });
 
 const projectsRestructured: globalThis.ComputedRef<Project[]> = computed(() => projectsList.value.map(item => ({
-    name: item.project.title,
-    startDate: item.project.startDateString,
-    endDate: item.project.endDateString,
-    releaseStatus: item.project.releaseStatusString,
-    statusDescription: item.project.statusDescription,
-    website: item.project.website,
+  id: item.project.projectId,
+  name: item.project.title,
+  startDate: item.project.startDateString,
+  endDate: item.project.endDateString,
+  releaseStatus: item.project.releaseStatusString,
+  statusDescription: item.project.statusDescription,
+  website: item.project.website,
 })));
 
 const paginatedProjects = computed(() => usePagination(projectsRestructured, 10));

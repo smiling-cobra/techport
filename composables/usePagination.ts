@@ -1,4 +1,5 @@
 interface ProjectRestructured {
+    id: number;
     name: string;
     startDate: string;
     endDate: string;
@@ -7,6 +8,6 @@ interface ProjectRestructured {
     website: string;
   }
 
-export const usePagination = (projects: ComputedRef<ProjectRestructured[]>, page = 10) => {
+export const usePagination = (projects: ComputedRef<ProjectRestructured[]>, currPage = 1, nextPage = 2) => {
     return projects.value.slice();
 };
