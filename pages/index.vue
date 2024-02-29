@@ -3,7 +3,12 @@
     <v-row justify="space-between" align="start">
       <!-- Left Side -->
       <v-col cols="12" md="1" class="mt-3">
-        <v-date-picker class="elevation-6" color="primary"></v-date-picker>
+        <v-date-picker
+          v-on:update:model-value="onDateChange"
+          class="elevation-6"
+          color="primary"
+          max-date="2024-02-23"
+        />
       </v-col>
       
       <!-- Right Side -->
@@ -24,8 +29,8 @@
     </v-row>
     <!-- Pagination Component -->
     <v-pagination
-    v-model="currentPage"
     :length="10"
+    v-model="currPaginationPage"
     circle
   ></v-pagination>
   </v-container>
@@ -73,8 +78,26 @@ const handleCardClick = (id: number) => {
   console.log('Card clicked', id);
 };
 
-const currentPage = ref(1);
-const projectsList = ref<any[]>([]);
+const onDateChange = (value: unknown) => {
+  requestedDateRange.value = dateToYYYYMMDD(value as number);
+};
+
+const getDefaultRequestDate = () => {
+  const DEFAULT_DATE_OFFSET = 7; // 7 Days
+  const now = new Date();
+  // Creates a new Date object to avoid mutating the original `now` object
+  const date7DaysAgo = new Date(now.setDate(now.getDate() - DEFAULT_DATE_OFFSET)).getTime();
+  return dateToYYYYMMDD(date7DaysAgo);
+};
+
+const dateToYYYYMMDD = (date: number) => {
+  const newDate = new Date(date);
+  return newDate.toISOString().split('T')[0];
+};
+
+const fetchedProjects = ref<any[]>([]);
+const currPaginationPage = ref(1);
+const requestedDateRange = ref(getDefaultRequestDate());
 
 const {
   data: projectsMetaData,
@@ -83,22 +106,21 @@ const {
 } = await useAsyncData<{ projects: ProjectsMetaData[] }>(
   QUERY_KEYS.PROJECTS_METADATA,
   () => $fetch(API_URL.PROJECTS,
-    { query: { updatedSince: '2024-02-23' } }
+    { query: { updatedSince: requestedDateRange.value } }
   ),
+  { watch: [requestedDateRange] }
 )
 
 watch(projectsMetaData, async newVal => {
   try {
-    const projectDetailsPromises = newVal?.projects.map(project => (
-      $fetch(`${API_URL.PROJECTS}/${project.projectId}`)
-    ));
-    projectsList.value = await Promise.all(projectDetailsPromises ?? []);
+    const projectDetailsPromises = newVal?.projects.map(project => $fetch(`${API_URL.PROJECTS}/${project.projectId}`));
+    fetchedProjects.value = await Promise.all(projectDetailsPromises ?? []);
   } catch (error) {
     console.error('Error fetching project details', error);
   }
 }, { immediate: true });
 
-const projectsRestructured: globalThis.ComputedRef<Project[]> = computed(() => projectsList.value.map(item => ({
+const projectsRestructured: globalThis.ComputedRef<Project[]> = computed(() => fetchedProjects.value.map(item => ({
   id: item.project.projectId,
   name: item.project.title,
   startDate: item.project.startDateString,
