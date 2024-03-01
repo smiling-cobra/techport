@@ -1,45 +1,53 @@
 <template>
-  <v-container fluid fill-height class="d-flex flex-column container-offset">
-    <v-row justify="space-between" align="start">
-      <!-- Left Side -->
-      <v-col cols="12" md="1" class="mt-3">
-        <v-date-picker
-          v-on:update:model-value="onDateChange"
-          class="elevation-6"
-          color="primary"
-          max-date="2024-02-23"
-        />
-      </v-col>
-      
-      <!-- Right Side -->
-      <v-col cols="12" md="9">        
-        <v-row class="right-side-scroll">
-          <v-col cols="12" md="3" v-for="project in paginatedProjects" :key="project.id">
-            <v-card class="my-4 elevation-6" outlined @click="handleCardClick(project.id)">
-              <v-card-title tag="h6" class="headline font-weight-bold small-font">{{ project.name }}</v-card-title>
-              <v-card-subtitle>{{ project.startDate }} - {{ project.endDate }}</v-card-subtitle>
-              <v-card-text>{{ project.statusDescription }}</v-card-text>
-              <v-card-actions>
-                <v-btn color="primary" :href="project.website" target="_blank">Learn More</v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-col>
-    </v-row>
-    <!-- Pagination Component -->
-    <v-pagination
-    :length="10"
-    v-model="currPaginationPage"
-    circle
-  ></v-pagination>
+  <v-container fluid>
+    <div v-if="projectsPending" class="pending-block">
+      <v-progress-circular color="primary" indeterminate></v-progress-circular>
+    </div>
+
+    <div v-else-if="projectsError">
+      <v-alert dense outlined color="error">
+        {{ projectsError }}
+      </v-alert>
+    </div>
+
+    <div v-else class="d-flex flex-column main">
+      <v-row justify="space-between" align="start">
+        <!-- Left Side -->
+        <v-col cols="12" md="3">
+          <v-date-picker
+            v-on:update:model-value="onDateChange" 
+            class="elevation-6"
+            color="primary"
+            :max="currentDate" />
+        </v-col>
+
+        <!-- Right Side -->
+        <v-col cols="12" md="9">
+          <v-row class="right-side-scroll">
+            <v-col cols="12" md="3" v-for="project in paginatedProjects" :key="project.id">
+              <project-card
+                :pid="project.id"
+                :name="project.name"
+                :startDate="project.startDate"
+                :endDate="project.endDate"
+                :statusDescription="project.statusDescription"
+                :website="project.website"
+                @handleCardClick="handleCardClick"
+                />
+            </v-col>
+          </v-row>
+        </v-col>
+      </v-row>
+      <!-- Pagination Component -->
+      <v-pagination :length="totalPages" v-model="currPaginationPage" circle></v-pagination>
+    </div>
   </v-container>
 </template>
 
 <style>
-.container-offset {
-  margin-top: 56px;
-  height: calc(100vh - 56px);
+.main {
+  margin-top: 72px;
+  height: calc(100vh - 108px);
 }
 
 .right-side-scroll {
@@ -50,11 +58,20 @@
 .small-font {
   font-size: 14px !important;
 }
+
+.pending-block {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 72px);
+}
 </style>
 
 <script setup lang="ts">
 import { QUERY_KEYS } from '~/constants/index';
 import { API_URL } from '~/constants/api';
+import { useLocalStorage } from '~/composables/useLocalStorage';
+import { dateToYYYYMMDD, getCurrentDate, getSevenDaysOffset } from '~/utils/dateUtils';
 
 interface ProjectsMetaData {
   acronym: string;
@@ -64,15 +81,13 @@ interface ProjectsMetaData {
   website: string;
 }
 
-interface Project {
-  id: number;
-  name: string;
-  startDate: string;
-  endDate: string;
-  releaseStatus: string;
-  statusDescription: string;
-  website: string;
+enum PaginationChunks {
+  TEN = 10,
+  FIFTY = 50,
+  TWENTY_FIVE = 25,
 }
+
+const [getValue, setValue] = useLocalStorage();
 
 const handleCardClick = (id: number) => {
   console.log('Card clicked', id);
@@ -80,29 +95,30 @@ const handleCardClick = (id: number) => {
 
 const onDateChange = (value: unknown) => {
   requestedDateRange.value = dateToYYYYMMDD(value as number);
+  setValue('requestedDateRange', requestedDateRange.value);
 };
 
 const getDefaultRequestDate = () => {
-  const DEFAULT_DATE_OFFSET = 7; // 7 Days
-  const now = new Date();
-  // Creates a new Date object to avoid mutating the original `now` object
-  const date7DaysAgo = new Date(now.setDate(now.getDate() - DEFAULT_DATE_OFFSET)).getTime();
-  return dateToYYYYMMDD(date7DaysAgo);
+  // If the code is running on the client side,
+  // get the stored date from local storage
+  if (typeof window !== 'undefined') {
+    const storedDate = getValue('requestedDateRange');
+    return dateToYYYYMMDD(storedDate as unknown as number);
+  }
+
+  return getSevenDaysOffset();
 };
 
-const dateToYYYYMMDD = (date: number) => {
-  const newDate = new Date(date);
-  return newDate.toISOString().split('T')[0];
-};
-
-const fetchedProjects = ref<any[]>([]);
 const currPaginationPage = ref(1);
+const itemsPerPage = ref(PaginationChunks.TEN);
+
+const currentDate = ref(getCurrentDate());
 const requestedDateRange = ref(getDefaultRequestDate());
 
 const {
   data: projectsMetaData,
-  pending,
-  error,
+  pending: projectsMetaDataPending,
+  error: projectsMetaDataError,
 } = await useAsyncData<{ projects: ProjectsMetaData[] }>(
   QUERY_KEYS.PROJECTS_METADATA,
   () => $fetch(API_URL.PROJECTS,
@@ -111,25 +127,52 @@ const {
   { watch: [requestedDateRange] }
 )
 
-watch(projectsMetaData, async newVal => {
+const fetchProjectDetails = async () => {
+  if (!projectsMetaData.value?.projects) {
+    console.warn('No projects to fetch');
+    return [];
+  }
+
   try {
-    const projectDetailsPromises = newVal?.projects.map(project => $fetch(`${API_URL.PROJECTS}/${project.projectId}`));
-    fetchedProjects.value = await Promise.all(projectDetailsPromises ?? []);
+    const projectDetailsPromises = projectsMetaData.value?.projects.map(({ projectId }) => $fetch(`${API_URL.PROJECTS}/${projectId}`));
+    return await Promise.all(projectDetailsPromises ?? []);
   } catch (error) {
     console.error('Error fetching project details', error);
+    throw error;
   }
-}, { immediate: true });
+};
 
-const projectsRestructured: globalThis.ComputedRef<Project[]> = computed(() => fetchedProjects.value.map(item => ({
-  id: item.project.projectId,
-  name: item.project.title,
-  startDate: item.project.startDateString,
-  endDate: item.project.endDateString,
-  releaseStatus: item.project.releaseStatusString,
-  statusDescription: item.project.statusDescription,
-  website: item.project.website,
-})));
+const {
+  data: fetchedProjects,
+  pending: projectsPending,
+  error: projectsError
+} = await useAsyncData(
+  QUERY_KEYS.PROJECT_DATA,
+  fetchProjectDetails,
+  { watch: [projectsMetaData] }
+);
 
-const paginatedProjects = computed(() => usePagination(projectsRestructured, 10));
+const projectsRestructured = computed(() => {
+  if (!fetchedProjects.value) return [];
+
+  return fetchedProjects?.value.map((item: any) => ({
+    id: item.project.projectId,
+    name: item.project.title,
+    startDate: item.project.startDateString,
+    endDate: item.project.endDateString,
+    statusDescription: item.project.statusDescription,
+    website: item.project.website,
+  }))
+});
+
+const paginatedProjects = computed(() => {
+  const start = (currPaginationPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return projectsRestructured.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+  return Math.ceil(projectsRestructured.value.length / itemsPerPage.value);
+});
 
 </script>
