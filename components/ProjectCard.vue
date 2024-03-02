@@ -1,5 +1,9 @@
 <template>
-    <v-card class="elevation-6" outlined @click="handleCardClick(pid)">
+    <v-card
+        class="elevation-6"
+        outlined
+        @click="onClick && onClick(pid)"
+    >
         <v-card-title tag="h6" class="headline font-weight-bold small-font">{{ name }}</v-card-title>
         <v-card-subtitle>{{ startDate }} - {{ endDate }}</v-card-subtitle>
         <v-card-text>{{ statusDescription }}</v-card-text>
@@ -18,5 +22,6 @@
         releaseStatus: String,
         statusDescription: String,
         website: String,
+        onClick: Function
     });
 </script>
