@@ -29,20 +29,15 @@
           </v-row>
         </v-col>
       </v-row>
+
       <!-- Pagination Component -->
       <v-pagination :length="totalPages" v-model="currPaginationPage" circle />
     </div>
-    <div class="text-center">
-      <v-overlay v-model="isModalOpen">
-        <v-card class="pa-2" width="400">
-          <div>Lead Organization: {{ selectedProject?.leadOrganization.organizationName }}</div>
-          <div>Supporting Organizations:</div>
-          <v-col v-for="organization in selectedProject?.supportingOrganizations" :key="organization.organizationName">
-            {{ organization.organizationName }}
-          </v-col>
-        </v-card>
-      </v-overlay>
-    </div>
+
+    <!-- Project Details Component -->
+    <v-overlay v-model="isModalOpen" class="d-flex justify-center align-center">
+      <project-details-card :project="selectedProject" />
+    </v-overlay>
   </v-container>
 </template>
 
@@ -75,69 +70,26 @@ import { API_URL } from '~/constants/api';
 import { useLocalStorage } from '~/composables/useLocalStorage';
 import { usePagination } from '~/composables/usePagination';
 import { dateToYYYYMMDD, getCurrentDate, getSevenDaysOffset } from '~/utils/dateUtils';
-
-
-interface ProjectsMetaData {
-  acronym: string;
-  lastUpdated: string;
-  projectId: number;
-  title: string;
-  website: string;
-}
-
-interface RawProjectsMetaData {
-  projects: ProjectsMetaData[];
-}
-
-enum PageChunks {
-  TEN = 10,
-  FIFTY = 50,
-  TWENTY_FIVE = 25,
-}
-
-interface RawProjectDetails {
-  project: ProjectDetails;
-}
-
-interface Organization {
-  organizationName: string;
-  organizationId: number;
-}
-
-interface ProjectDetails {
-  title: string;
-  projectId: number;
-  md: Array<Record<string, string>>;
-  pms: Array<Record<string, string>>;
-  coInvestigators: Array<Record<string, string>>;
-  leadOrganization: Organization;
-  supportingOrganizations: Array<Organization>;
-  principalInvestigators: Array<Record<string, string>>;
-  directors: Array<Record<string, string>>;
-  executives: Array<Record<string, string>>;
-  startDateString: string;
-  endDateString: string;
-  statusDescription: string;
-  website: string;
-}
+import { PageChunks, type ProjectDetails, type RawProjectDetails, type RawProjectsMetaData } from '~/interfaces';
+import { fetchProjectDetails } from '~/services/projectsService';
 
 const [getValue, setValue] = useLocalStorage();
 
 const handleCardClick = (id: number) => {
-  const currentProject = paginatedProjects.value.find(({ projectId }) => projectId === id);
+  const currProject = paginatedProjects.value.find(({ projectId }) => projectId === id);
 
-  if (!currentProject) {
+  if (!currProject) {
     console.warn('No project found');
     return;
   }
 
-  selectedProject.value = currentProject;
+  selectedProject.value = currProject;
   isModalOpen.value = true;
 };
 
 const onDateChange = (value: unknown) => {
   requestedDateRange.value = dateToYYYYMMDD(value as number);
-  
+
   // Store the selected date in local storage
   setValue('requestedDateRange', requestedDateRange.value);
 };
@@ -174,28 +126,15 @@ const {
   { watch: [requestedDateRange] }
 )
 
-const fetchProjectDetails = async () => {
-  if (!projectsMetaData.value?.projects) {
-    console.warn('No projects to fetch');
-    return [];
-  }
-
-  try {
-    const projectDetailsPromises = projectsMetaData.value?.projects.map(({ projectId }) => $fetch(`${API_URL.PROJECTS}/${projectId}`));
-    return await Promise.all(projectDetailsPromises ?? []) as Array<RawProjectDetails>;
-  } catch (error) {
-    console.error('Error fetching project details', error);
-    throw error;
-  }
-};
-
 const {
   data: fetchedProjects,
   pending: projectsPending,
   error: projectsError
 } = await useAsyncData<Array<RawProjectDetails>>(
   QUERY_KEYS.PROJECT_DATA,
-  fetchProjectDetails,
+  () => fetchProjectDetails(
+    projectsMetaData.value?.projects,
+  ),
   { watch: [projectsMetaData] }
 );
 

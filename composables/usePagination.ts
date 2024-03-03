@@ -1,28 +1,4 @@
-interface Organization {
-  organizationName: string;
-  organizationId: number;
-}
-
-interface ProjectDetails {
-  title: string;
-  projectId: number;
-  md: Array<Record<string, string>>;
-  pms: Array<Record<string, string>>;
-  coInvestigators: Array<Record<string, string>>;
-  leadOrganization: Organization;
-  supportingOrganizations: Array<Organization>;
-  principalInvestigators: Array<Record<string, string>>;
-  directors: Array<Record<string, string>>;
-  executives: Array<Record<string, string>>;
-  startDateString: string;
-  endDateString: string;
-  statusDescription: string;
-  website:string;
-}
-
-interface RawProjectDetails {
-  project: ProjectDetails;
-}
+import type { ProjectDetails, RawProjectDetails } from "~/interfaces";
 
 export const usePagination = (
   projectsList: Array<RawProjectDetails> | null,
