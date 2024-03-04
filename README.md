@@ -45,3 +45,4 @@ Check out the [deployment documentation](https://nuxt.com/docs/getting-started/d
 - Consqequitive requests structure, caching, handling
 - UI stylings
 - Pagination
+- To show the same page/data across browser refresh

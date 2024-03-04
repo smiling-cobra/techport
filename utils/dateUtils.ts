@@ -11,7 +11,8 @@ export const getCurrentDate = () => {
 export const getSevenDaysOffset = () => {
     const DEFAULT_DATE_OFFSET = 7; // 7 Days
     const now = new Date();
-    // Creates a new Date object to avoid mutating the original `now` object
+    
+    // A new Date object is created to avoid mutating the original `now` object
     const date7DaysAgo = new Date(now.setDate(now.getDate() - DEFAULT_DATE_OFFSET)).getTime();
     return dateToYYYYMMDD(date7DaysAgo);
 };
