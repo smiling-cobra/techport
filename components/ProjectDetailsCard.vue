@@ -17,31 +17,56 @@
             <div v-if="project?.principalInvestigators?.length" class="section">
                 <h3 class="section-title">Principal Investigators</h3>
                 <ul class="person-list">
-                    <li v-for="(pi, index) in project.principalInvestigators" :key="index">{{ pi.fullName }}</li>
+                    <li v-for="(pi, index) in project.principalInvestigators" :key="index">
+                        {{ pi.fullName }}
+                        <div v-if="pi.primaryEmail">
+                            {{ pi.primaryEmail }}
+                        </div>
+                    </li>
                 </ul>
             </div>
             <div v-if="project?.pms?.length" class="section">
                 <h3 class="section-title">Project Managers</h3>
                 <ul class="person-list">
-                    <li v-for="(pm, index) in project.pms" :key="index">{{ pm.fullName }}</li>
+                    <li v-for="(pm, index) in project.pms" :key="index">
+                        {{ pm.fullName }}
+                        <div v-if="pm.primaryEmail">
+                            {{ pm.primaryEmail }}
+                        </div>
+                    </li>
                 </ul>
             </div>
             <div v-if="project?.directors?.length" class="section">
                 <h3 class="section-title">Directors</h3>
                 <ul class="person-list">
-                    <li v-for="(director, index) in project.directors" :key="index">{{ director.fullName }}</li>
+                    <li v-for="(director, index) in project.directors" :key="index">
+                        {{ director.fullName }}
+                        <div v-if="director.primaryEmail">
+                            {{ director.primaryEmail }}
+                        </div>
+                    </li>
                 </ul>
             </div>
             <div v-if="project?.executives?.length" class="section">
                 <h3 class="section-title">Executives</h3>
                 <ul class="person-list">
-                    <li v-for="(executive, index) in project.executives" :key="index">{{ executive.fullName }}</li>
+                    <li v-for="(executive, index) in project.executives" :key="index">
+                        {{ executive.fullName }}
+                        <div v-if="executive.primaryEmail">
+                            {{ executive.primaryEmail }}
+                        </div>
+                    </li>
                 </ul>
             </div>
             <div v-if="project?.coInvestigators?.length" class="section">
                 <h3 class="section-title">Co-Investigators</h3>
                 <ul class="person-list">
-                    <li v-for="(ci, index) in project.coInvestigators" :key="index">{{ ci.fullName }}</li>
+                    <li v-for="(ci, index) in project.coInvestigators" :key="index">
+                        {{ ci.fullName }}
+                        <div v-if="ci.primaryEmail">
+                            {{ ci.primaryEmail }}
+                        </div>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -49,7 +74,6 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue';
 import type { ProjectDetails } from '~/interfaces';
 
 defineProps<{ project: ProjectDetails | null }>();

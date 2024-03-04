@@ -1,26 +1,24 @@
 <template>
-  <v-container fluid>
-    <div v-if="projectsPending" class="pending-block">
+  <v-container fluid class="pt-16 pb-16">
+    <div v-if="projectsPending || projectsMetaDataPending" class="pending-block">
       <v-progress-circular color="primary" indeterminate />
     </div>
 
-    <div v-else-if="projectsError">
+    <div v-else-if="projectsError || projectsMetaDataError">
       <v-alert dense outlined color="error">
         {{ projectsError }}
       </v-alert>
     </div>
 
-    <div v-else class="d-flex flex-column main">
+    <v-container fluid v-else>
       <v-row justify="space-between" align="start">
-        <!-- Left Side -->
         <v-col cols="12" md="3">
-          <v-date-picker v-on:update:model-value="onDateChange" class="elevation-6" color="primary"
-            :max="currentDate" />
+          <v-date-picker width="100%" v-on:update:model-value="onDateChange" class="elevation-6 mb-4" color="primary" :max="currentDate" />
+          <v-combobox variant="outlined" label="Items per page" :items="pageChunksValues" v-on:update:model-value="onItemsPerPageChange" v-model:model-value="itemsPerPage" />
         </v-col>
 
-        <!-- Right Side -->
-        <v-col cols="12" md="9">
-          <v-row class="right-side-scroll">
+        <v-col cols="12" md="9" class="right-side-scroll">
+          <v-row>
             <v-col cols="12" md="3" v-for="item in paginatedProjects" :key="item.projectId">
               <project-card :pid="item.projectId" :name="item.title" :startDate="item.startDateString"
                 :endDate="item.endDateString" :statusDescription="item.statusDescription" :website="item.website"
@@ -30,9 +28,11 @@
         </v-col>
       </v-row>
 
-      <!-- Pagination Component -->
-      <v-pagination :length="totalPages" v-model="currPaginationPage" circle />
-    </div>
+      <!-- Don't show pagination if there's only 1 page -->
+      <div class="pagination-container">
+        <v-pagination :length="totalPages" v-model="currPaginationPage" circle />
+      </div>
+    </v-container>
 
     <!-- Project Details Component -->
     <v-overlay v-model="isModalOpen" class="d-flex justify-center align-center">
@@ -42,14 +42,25 @@
 </template>
 
 <style>
+.pagination-container {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  height: 72px;
+  background-color: white;
+  z-index: 1000;
+  box-shadow: 0 -4px 10px -5px rgba(0, 0, 0, 0.2);
+  padding-top: 8px;
+}
+
 .main {
   margin-top: 72px;
-  height: calc(100vh - 108px);
 }
 
 .right-side-scroll {
   max-height: 100vh;
-  overflow-y: auto;
+  overflow-y: scroll;
+  padding-bottom: 160px; 
 }
 
 .small-font {
@@ -58,8 +69,8 @@
 
 .pending-block {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   height: calc(100vh - 72px);
 }
 </style>
@@ -97,22 +108,39 @@ const onDateChange = (value: unknown) => {
 const getDefaultRequestDate = () => {
   // If the code is running on the client side,
   // get the stored date from local storage
-  // if (typeof window !== 'undefined') {
-  //   const storedDate = getValue('requestedDateRange');
-  //   return dateToYYYYMMDD(storedDate as unknown as number);
-  // }
+  if (typeof window !== 'undefined') {
+    const storedDate = getValue('requestedDateRange');
+    return dateToYYYYMMDD(storedDate as unknown as number);
+  }
 
   return getSevenDaysOffset();
 };
 
+const onItemsPerPageChange = (value: number | string | null) => {
+  setValue('itemsPerPage', value as number);
+  itemsPerPage.value = value as number;
+};
+
+const getDefaultItemsPerPage = () => {
+  if (typeof window !== 'undefined') {
+    const storedItemsPerPage = getValue('itemsPerPage');
+    const parsedValue = parseInt(storedItemsPerPage as string, 10);
+    return parsedValue || PageChunks.TEN;
+  }
+
+  return PageChunks.TEN;
+};
+
 const currPaginationPage = ref(1);
-const itemsPerPage = ref(PageChunks.TEN);
+const itemsPerPage = ref<number>(getDefaultItemsPerPage());
 
 const currentDate = ref(getCurrentDate());
 const requestedDateRange = ref(getDefaultRequestDate());
 
 const isModalOpen = ref(false);
 const selectedProject = ref<ProjectDetails | null>(null);
+
+const pageChunksValues = Object.values(PageChunks).filter(Number) as Array<number>;
 
 const {
   data: projectsMetaData,
