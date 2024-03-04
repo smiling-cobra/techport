@@ -6,7 +6,7 @@
 
     <div v-else-if="projectsError || projectsMetaDataError">
       <v-alert dense outlined color="error">
-        {{ projectsError }}
+        {{ projectsError || projectsMetaDataError || 'Unknown error occurred' }}
       </v-alert>
     </div>
 
@@ -76,8 +76,8 @@
 </style>
 
 <script setup lang="ts">
-import { QUERY_KEYS } from '~/constants/index';
 import { API_URL } from '~/constants/api';
+import { QUERY_KEYS } from '~/constants/queries';
 import { usePagination } from '~/composables/usePagination';
 import { dateToYYYYMMDD, getCurrentDate, getSevenDaysOffset } from '~/utils/dateUtils';
 import { PageChunks, type ProjectDetails, type RawProjectDetails, type RawProjectsMetaData } from '~/interfaces';
@@ -175,4 +175,4 @@ const totalPages = computed(() =>
     (fetchedProjects?.value?.length || 0) / itemsPerPage.value
   ));
 
-</script>
+</script>~/constants/queries
