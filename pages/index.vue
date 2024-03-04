@@ -29,7 +29,7 @@
       </v-row>
 
       <!-- Don't show pagination if there's only 1 page -->
-      <div class="pagination-container">
+      <div v-if="totalPages > 1" class="pagination-container">
         <v-pagination :length="totalPages" v-model="currPaginationPage" circle />
       </div>
     </v-container>
@@ -78,13 +78,13 @@
 <script setup lang="ts">
 import { QUERY_KEYS } from '~/constants/index';
 import { API_URL } from '~/constants/api';
-import { useLocalStorage } from '~/composables/useLocalStorage';
 import { usePagination } from '~/composables/usePagination';
 import { dateToYYYYMMDD, getCurrentDate, getSevenDaysOffset } from '~/utils/dateUtils';
 import { PageChunks, type ProjectDetails, type RawProjectDetails, type RawProjectsMetaData } from '~/interfaces';
 import { fetchProjectDetails } from '~/services/projectsService';
 
-const [getValue, setValue] = useLocalStorage();
+const itemsPerPageCookie = useCookie('itemsPerPage');
+const requestedDateRangeCookie = useCookie('requestedDateRange');
 
 const handleCardClick = (id: number) => {
   const currProject = paginatedProjects.value.find(({ projectId }) => projectId === id);
@@ -100,34 +100,23 @@ const handleCardClick = (id: number) => {
 
 const onDateChange = (value: unknown) => {
   requestedDateRange.value = dateToYYYYMMDD(value as number);
-
-  // Store the selected date in local storage
-  setValue('requestedDateRange', requestedDateRange.value);
 };
 
 const getDefaultRequestDate = () => {
-  // If the code is running on the client side,
-  // get the stored date from local storage
-  if (typeof window !== 'undefined') {
-    const storedDate = getValue('requestedDateRange');
-    return dateToYYYYMMDD(storedDate as unknown as number);
+  if (requestedDateRangeCookie.value) {
+    return requestedDateRangeCookie.value;
   }
-
   return getSevenDaysOffset();
 };
 
 const onItemsPerPageChange = (value: number | string | null) => {
-  setValue('itemsPerPage', value as number);
   itemsPerPage.value = value as number;
 };
 
 const getDefaultItemsPerPage = () => {
-  if (typeof window !== 'undefined') {
-    const storedItemsPerPage = getValue('itemsPerPage');
-    const parsedValue = parseInt(storedItemsPerPage as string, 10);
-    return parsedValue || PageChunks.TEN;
+  if (itemsPerPageCookie.value) {
+    return Number(itemsPerPageCookie.value);
   }
-
   return PageChunks.TEN;
 };
 
@@ -141,6 +130,14 @@ const isModalOpen = ref(false);
 const selectedProject = ref<ProjectDetails | null>(null);
 
 const pageChunksValues = Object.values(PageChunks).filter(Number) as Array<number>;
+
+watchEffect(() => {
+  requestedDateRangeCookie.value = JSON.stringify(requestedDateRange.value);
+});
+
+watchEffect(() => {
+  itemsPerPageCookie.value = JSON.stringify(itemsPerPage.value);
+});
 
 const {
   data: projectsMetaData,
