@@ -8,6 +8,12 @@ Look at the [Nuxt 3 documentation](https://nuxt.com/docs/getting-started/introdu
 
 ## Setup
 
+Create .env file:
+
+```
+Add your NUXT_PUBLIC_API and NUXT_PUBLIC_API_KEY
+```
+
 Make sure to install the dependencies:
 
 ```bash
